@@ -129,7 +129,7 @@ const MonthlyLessonScheduler = () => {
     for (let day = 1; day <= daysInMonth; day++) {
       const dateKey = `${year}-${month}-${day}`;
       newSchedule[dateKey] = {};
-      for (let hour = 8; hour <= 19; hour++) {
+      for (let hour = 8; hour <= 21; hour++) {
         newSchedule[dateKey][hour] = {
           student: '',
           isCompleted: false,

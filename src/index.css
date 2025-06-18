@@ -2,18 +2,188 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ...mevcut kodlarınız... */
+/* Reset ve temel stiller */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  overflow-x: auto; /* Yatay kaydırma için */
+  -webkit-overflow-scrolling: touch; /* iOS için smooth scrolling */
+}
 
 body {
   margin: 0;
+  padding: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  
+  /* Mobile optimizasyonları */
+  overflow-x: auto;
+  min-width: 320px; /* Minimum genişlik */
+  width: 100%;
+  
+  /* Touch cihazlar için */
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+/* Container sınıfları */
+.container {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+/* Responsive container */
+.responsive-container {
+  width: 100%;
+  min-width: 320px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Geniş içerik için yatay kaydırma */
+.scrollable-content {
+  width: max-content;
+  min-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* Scrollbar stilleri (WebKit tarayıcılar için) */
+.scrollable-content::-webkit-scrollbar {
+  height: 8px;
+}
+
+.scrollable-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.scrollable-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.scrollable-content::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Mobile breakpoints */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  
+  .container {
+    padding: 0 12px;
+  }
+  
+  /* Mobilde daha küçük scrollbar */
+  .scrollable-content::-webkit-scrollbar {
+    height: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    font-size: 13px;
+  }
+  
+  .container {
+    padding: 0 8px;
+  }
+}
+
+/* Tablet breakpoint */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .container {
+    padding: 0 20px;
+  }
+}
+
+/* Desktop breakpoint */
+@media (min-width: 1025px) {
+  .container {
+    max-width: 1200px;
+    padding: 0 24px;
+  }
+}
+
+/* Yatay kaydırma için özel utility sınıfları */
+.scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scroll-y {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scroll-both {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Geniş tablolar için */
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 16px 0;
+}
+
+.table-wrapper table {
+  min-width: 600px; /* Tablonun minimum genişliği */
+  width: 100%;
+}
+
+/* Flexbox için yatay kaydırma */
+.flex-scroll {
+  display: flex;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  gap: 16px;
+  padding: 16px 0;
+}
+
+.flex-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+
+.flex-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.flex-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+/* Responsive görüntüler */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Viewport meta tag için CSS yardımcısı */
+@viewport {
+  width: device-width;
+  initial-scale: 1;
 }

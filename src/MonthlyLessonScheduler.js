@@ -480,7 +480,7 @@ const MonthlyLessonScheduler = () => {
                 onChange={e => setHourToAssign(Number(e.target.value))}
               >
                 <option value="">Saat seçin</option>
-                {Array.from({ length: 12 }, (_, i) => 8 + i).map(hour => (
+                {Array.from({ length: 14 }, (_, i) => 8 + i).map(hour => (
                   <option key={hour} value={hour}>{hour}:00</option>
                 ))}
               </select>

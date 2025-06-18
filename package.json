@@ -58,6 +58,14 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+<<<<<<< HEAD
 >>>>>>> 7e31b11 (Initialize project using Create React App)
+=======
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.3.3"
+>>>>>>> 888ecaf (İlk yükleme)
   }
 }

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
 const STORAGE_KEY = "monthlyLessonScheduler";
-
 const MONTHLY_FREE_DAY = "Boş Zaman";
 
 const MonthlyLessonScheduler = () => {
@@ -14,53 +13,25 @@ const MonthlyLessonScheduler = () => {
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedHour, setSelectedHour] = useState(null);
 
+  // Ana schedule, her ayın gün/saatlerini ve atamalarını içerir
   const [monthlySchedule, setMonthlySchedule] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        return parsed.monthlySchedule;
+        return parsed.monthlySchedule || {};
       } catch {}
     }
-    // initial schedule
-    const schedule = {};
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dateKey = `${year}-${month}-${day}`;
-      schedule[dateKey] = {};
-      for (let hour = 8; hour <= 21; hour++) {
-        schedule[dateKey][hour] = {
-          student: '',
-          isCompleted: false,
-          isFixed: false,
-          lessonCount: 0
-        };
-      }
-    }
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month, day);
-      if (date.getDay() === 2) {
-        const dateKey = `${year}-${month}-${day}`;
-        schedule[dateKey][11] = {
-          student: 'Ayşe',
-          isCompleted: false,
-          isFixed: true,
-          lessonCount: 1
-        };
-      }
-    }
-    return schedule;
+    return {};
   });
 
+  // Öğrenci başına toplam ders sayısı
   const [studentLessonCounts, setStudentLessonCounts] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        return parsed.studentLessonCounts;
+        return parsed.studentLessonCounts || {};
       } catch {}
     }
     const counts = {};
@@ -77,13 +48,58 @@ const MonthlyLessonScheduler = () => {
   const [studentToAssign, setStudentToAssign] = useState('');
   const [hourToAssign, setHourToAssign] = useState(null);
 
+  // Ay/gün anahtarını üret
+  const getDateKey = (dateObj, day) => {
+    const year = dateObj.getFullYear();
+    const month = dateObj.getMonth();
+    return `${year}-${month}-${day}`;
+  };
+
+  // Ay takvimi için eksik günleri schedule'a ekle (her geçişte veya ilk açılışta)
+  useEffect(() => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    setMonthlySchedule(prev => {
+      const newSchedule = { ...prev };
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateKey = `${year}-${month}-${day}`;
+        if (!newSchedule[dateKey]) {
+          newSchedule[dateKey] = {};
+          for (let hour = 8; hour <= 21; hour++) {
+            newSchedule[dateKey][hour] = {
+              student: '',
+              isCompleted: false,
+              isFixed: false,
+              lessonCount: 0
+            };
+          }
+          // Salı günü için sabit ders ekle
+          const date = new Date(year, month, day);
+          if (date.getDay() === 2) {
+            newSchedule[dateKey][11] = {
+              student: 'Ayşe',
+              isCompleted: false,
+              isFixed: true,
+              lessonCount: 1
+            };
+          }
+        }
+      }
+      return newSchedule;
+    });
+    // eslint-disable-next-line
+  }, [currentDate]);
+
+  // LocalStorage'dan ilk yükleme
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setMonthlySchedule(parsed.monthlySchedule);
-        setStudentLessonCounts(parsed.studentLessonCounts);
+        setMonthlySchedule(parsed.monthlySchedule || {});
+        setStudentLessonCounts(parsed.studentLessonCounts || {});
       } catch {}
     }
     // eslint-disable-next-line
@@ -114,40 +130,14 @@ const MonthlyLessonScheduler = () => {
     return days;
   };
 
+  // Ay değişimi - schedule'da eski veriler KORUNUR, sadece yeni ayın eksikleri eklenir
   const changeMonth = (direction) => {
     const newDate = new Date(currentDate);
     newDate.setMonth(newDate.getMonth() + direction);
     setCurrentDate(newDate);
     setSelectedDay(null);
     setSelectedHour(null);
-
-    const year = newDate.getFullYear();
-    const month = newDate.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-    const newSchedule = {};
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dateKey = `${year}-${month}-${day}`;
-      newSchedule[dateKey] = {};
-      for (let hour = 8; hour <= 21; hour++) {
-        newSchedule[dateKey][hour] = {
-          student: '',
-          isCompleted: false,
-          isFixed: false,
-          lessonCount: 0
-        };
-      }
-      const date = new Date(year, month, day);
-      if (date.getDay() === 2) {
-        newSchedule[dateKey][11] = {
-          student: 'Ayşe',
-          isCompleted: false,
-          isFixed: true,
-          lessonCount: 1
-        };
-      }
-    }
-    setMonthlySchedule(newSchedule);
+    // useEffect ile ay geçişinde eksik gün/saat otomatik eklenir
   };
 
   // Güne tıklama ve 5 kere tıklama kontrolü
@@ -156,21 +146,23 @@ const MonthlyLessonScheduler = () => {
     setSelectedDay(day);
     setSelectedHour(null);
 
-    const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${day}`;
+    const dateKey = getDateKey(currentDate, day);
     setDayClickCounts(prev => {
       const newCounts = { ...prev, [dateKey]: (prev[dateKey] || 0) + 1 };
       // 5. tıklamada o günün tüm derslerini sıfırla
       if (newCounts[dateKey] === 5) {
-        const newSchedule = { ...monthlySchedule };
-        Object.keys(newSchedule[dateKey]).forEach(hour => {
-          newSchedule[dateKey][hour] = {
-            student: '',
-            isCompleted: false,
-            isFixed: false,
-            lessonCount: 0
-          };
+        setMonthlySchedule(prevSchedule => {
+          const newSchedule = { ...prevSchedule };
+          Object.keys(newSchedule[dateKey]).forEach(hour => {
+            newSchedule[dateKey][hour] = {
+              student: '',
+              isCompleted: false,
+              isFixed: false,
+              lessonCount: 0
+            };
+          });
+          return newSchedule;
         });
-        setMonthlySchedule(newSchedule);
         setDayClickCounts({ ...prev, [dateKey]: 0 });
       }
       return newCounts;
@@ -180,16 +172,18 @@ const MonthlyLessonScheduler = () => {
   // Sağ panelde öğrenci seçme işlemi
   const handleStudentAssign = () => {
     if (!studentToAssign || !selectedDay || hourToAssign === null) return;
-    const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${selectedDay}`;
-    const newSchedule = { ...monthlySchedule };
-    newSchedule[dateKey][hourToAssign] = {
-      ...newSchedule[dateKey][hourToAssign],
-      student: studentToAssign,
-      isCompleted: false,
-      isFixed: false,
-      lessonCount: 1
-    };
-    setMonthlySchedule(newSchedule);
+    const dateKey = getDateKey(currentDate, selectedDay);
+    setMonthlySchedule(prev => {
+      const newSchedule = { ...prev };
+      newSchedule[dateKey][hourToAssign] = {
+        ...newSchedule[dateKey][hourToAssign],
+        student: studentToAssign,
+        isCompleted: false,
+        isFixed: false,
+        lessonCount: 1
+      };
+      return newSchedule;
+    });
     setShowStudentSelect(false);
     setStudentToAssign('');
     setHourToAssign(null);
@@ -198,13 +192,15 @@ const MonthlyLessonScheduler = () => {
   const handleHourClick = (hour) => {
     if (!selectedDay) return;
 
-    const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${selectedDay}`;
+    const dateKey = getDateKey(currentDate, selectedDay);
     const cell = monthlySchedule[dateKey][hour];
 
     if (cell.student && !cell.isCompleted) {
-      const newSchedule = { ...monthlySchedule };
-      newSchedule[dateKey][hour].isCompleted = true;
-      setMonthlySchedule(newSchedule);
+      setMonthlySchedule(prev => {
+        const newSchedule = { ...prev };
+        newSchedule[dateKey][hour].isCompleted = true;
+        return newSchedule;
+      });
 
       // "Boş Zaman" ise sayaç artmasın
       if (cell.student === MONTHLY_FREE_DAY) {
@@ -231,7 +227,7 @@ const MonthlyLessonScheduler = () => {
   const handleDoubleClick = (hour) => {
     if (!selectedDay) return;
 
-    const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${selectedDay}`;
+    const dateKey = getDateKey(currentDate, selectedDay);
     const cell = monthlySchedule[dateKey][hour];
 
     if (!cell.isFixed) {
@@ -242,52 +238,54 @@ const MonthlyLessonScheduler = () => {
 
   const saveEdit = () => {
     if (editingCell && selectedDay) {
-      const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${selectedDay}`;
-      const newSchedule = { ...monthlySchedule };
-      newSchedule[dateKey][editingCell.hour] = {
-        ...newSchedule[dateKey][editingCell.hour],
-        student: editValue,
-        isCompleted: false
-      };
-      setMonthlySchedule(newSchedule);
+      const dateKey = getDateKey(currentDate, selectedDay);
+      setMonthlySchedule(prev => {
+        const newSchedule = { ...prev };
+        newSchedule[dateKey][editingCell.hour] = {
+          ...newSchedule[dateKey][editingCell.hour],
+          student: editValue,
+          isCompleted: false
+        };
+        return newSchedule;
+      });
       setEditingCell(null);
       setEditValue('');
     }
   };
 
   const autoAssignLessons = () => {
-    const newSchedule = { ...monthlySchedule };
-    const newCounts = { ...studentLessonCounts };
+    setMonthlySchedule(prevSchedule => {
+      const newSchedule = { ...prevSchedule };
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-    const emptySlots = [];
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dateKey = `${year}-${month}-${day}`;
-      for (let hour = 8; hour <= 21; hour++) {
-        if (!newSchedule[dateKey][hour].student) {
-          emptySlots.push({ dateKey, day, hour });
+      const emptySlots = [];
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateKey = `${year}-${month}-${day}`;
+        for (let hour = 8; hour <= 21; hour++) {
+          if (!newSchedule[dateKey][hour].student) {
+            emptySlots.push({ dateKey, day, hour });
+          }
         }
       }
-    }
 
-    let slotIndex = 0;
-    students.forEach(student => {
-      if (student !== MONTHLY_FREE_DAY && newCounts[student] < 1 && slotIndex < emptySlots.length) {
-        const slot = emptySlots[slotIndex];
-        newSchedule[slot.dateKey][slot.hour] = {
-          student,
-          isCompleted: false,
-          isFixed: false,
-          lessonCount: 1
-        };
-        slotIndex++;
-      }
+      let slotIndex = 0;
+      students.forEach(student => {
+        if (student !== MONTHLY_FREE_DAY && (studentLessonCounts[student] || 0) < 1 && slotIndex < emptySlots.length) {
+          const slot = emptySlots[slotIndex];
+          newSchedule[slot.dateKey][slot.hour] = {
+            student,
+            isCompleted: false,
+            isFixed: false,
+            lessonCount: 1
+          };
+          slotIndex++;
+        }
+      });
+
+      return newSchedule;
     });
-
-    setMonthlySchedule(newSchedule);
   };
 
   // GÜNÜN HERHANGİ BİR SAATİNDE "Boş Zaman" varsa o gün tatil günü olarak kabul edilir
@@ -311,7 +309,7 @@ const MonthlyLessonScheduler = () => {
 
   const getDaySchedule = () => {
     if (!selectedDay) return [];
-    const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${selectedDay}`;
+    const dateKey = getDateKey(currentDate, selectedDay);
     const daySchedule = monthlySchedule[dateKey];
     if (!daySchedule) return [];
     return Object.keys(daySchedule).map(hour => ({
@@ -352,6 +350,7 @@ const MonthlyLessonScheduler = () => {
     return { totalLessons, completedLessons, freeSlots, holidayCount };
   };
 
+  // KAYDET: Tüm schedule'ı ve öğrenci sayaçlarını kaydeder
   const handleSave = () => {
     localStorage.setItem(
       STORAGE_KEY,
@@ -370,7 +369,7 @@ const MonthlyLessonScheduler = () => {
   // GÜN RENGİ: Eğer o günde herhangi bir boş zaman atanmışsa sarı, yoksa yeşil (veya normal)
   const getDayColor = (day) => {
     if (!day) return '';
-    const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${day}`;
+    const dateKey = getDateKey(currentDate, day);
     const daySchedule = monthlySchedule[dateKey];
     if (!daySchedule) return '';
     const hasBoşZaman = Object.values(daySchedule).some(slot => slot.student === MONTHLY_FREE_DAY);
@@ -417,7 +416,7 @@ const MonthlyLessonScheduler = () => {
 
             {/* Günler */}
             {days.map((day, index) => {
-              const dateKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}-${day}`;
+              const dateKey = getDateKey(currentDate, day);
               return (
                 <div
                   key={index}

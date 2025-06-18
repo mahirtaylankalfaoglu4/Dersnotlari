@@ -4,10 +4,8 @@ const STORAGE_KEY = "monthlyLessonScheduler";
 
 const MonthlyLessonScheduler = () => {
   const [students] = useState([
-    'Ayşe', 'Mehmet', 'Fatma', 'Ali', 'Zeynep', 'Ahmet', 'Elif', 'Murat',
-    'Selin', 'Burak', 'Özge', 'Emre', 'Neslihan', 'Tolga', 'Didem', 'Serkan',
-    'Pınar', 'Deniz', 'Begüm', 'Onur', 'Merve', 'Kaan', 'Esra', 'Cem',
-    'Burcu', 'Oğuz', 'Gamze', 'Barış', 'Aslı', 'Erdem'
+    'E Öykü', 'Güneş M', 'Asya A', 'Mila B', 'Duru B', 'Eda', 'Erva', 'Rengin',
+    'Miray', 'Toprak A', 'Erva K', 'İpek', 'Güneş O', 'Ecrin S', 'Ulaş Y', 'Ayşe Hanım'
   ]);
 
   const [currentDate, setCurrentDate] = useState(new Date());

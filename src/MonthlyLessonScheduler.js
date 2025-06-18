@@ -266,7 +266,7 @@ const MonthlyLessonScheduler = () => {
     const emptySlots = [];
     for (let day = 1; day <= daysInMonth; day++) {
       const dateKey = `${year}-${month}-${day}`;
-      for (let hour = 8; hour <= 19; hour++) {
+      for (let hour = 8; hour <= 21; hour++) {
         if (!newSchedule[dateKey][hour].student) {
           emptySlots.push({ dateKey, day, hour });
         }

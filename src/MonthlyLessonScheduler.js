@@ -4,7 +4,6 @@ const STORAGE_KEY = "monthlyLessonScheduler";
 const MONTHLY_FREE_DAY = "Boş Zaman";
 
 const MonthlyLessonScheduler = () => {
-  // Öğrenci listesini localStorage'da da tutalım ki ekleme/silme kalıcı olsun
   const [students, setStudents] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -59,7 +58,7 @@ const MonthlyLessonScheduler = () => {
   const [studentToAssign, setStudentToAssign] = useState('');
   const [hourToAssign, setHourToAssign] = useState(null);
 
-  // Öğrenci Ekleme için
+  // Öğrenci ekleme için
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
 
@@ -395,9 +394,8 @@ const MonthlyLessonScheduler = () => {
     });
   };
 
-  // "Boş Zaman" sil veya değiştir
+  // "Boş Zaman" sil veya değiştir (ONAY SORMADAN)
   const handleFreeTimeAction = (dateKey, hour) => {
-    if (!window.confirm('Bu "Boş Zaman"ı silmek/değiştirmek istiyor musunuz?')) return;
     setMonthlySchedule(prev => {
       const newSchedule = { ...prev };
       newSchedule[dateKey][hour] = {
@@ -652,7 +650,6 @@ const MonthlyLessonScheduler = () => {
                     ) : (
                       <div className="text-xs mt-1 flex items-center">
                         {student || 'Boş'}
-                        {/* Eğer Boş Zaman ise sil butonu */}
                         {isHoliday && (
                           <button
                             className="ml-2 px-2 py-1 bg-red-400 text-white rounded text-[10px] hover:bg-red-600"
@@ -665,7 +662,6 @@ const MonthlyLessonScheduler = () => {
                             Sil
                           </button>
                         )}
-                        {/* Eğer öğrenci atanmışsa ve sabit değilse sil butonu */}
                         {!isHoliday && student && !isFixed && (
                           <button
                             className="ml-2 px-2 py-1 bg-red-400 text-white rounded text-[10px] hover:bg-red-600"

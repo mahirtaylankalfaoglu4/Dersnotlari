@@ -37,7 +37,6 @@ const MonthlyLessonScheduler = () => {
     return {};
   });
 
-  // Öğrenci başına toplam ders sayısı
   const [studentLessonCounts, setStudentLessonCounts] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -147,17 +146,14 @@ const MonthlyLessonScheduler = () => {
     return days;
   };
 
-  // Ay değişimi - schedule'da eski veriler KORUNUR, sadece yeni ayın eksikleri eklenir
   const changeMonth = (direction) => {
     const newDate = new Date(currentDate);
     newDate.setMonth(newDate.getMonth() + direction);
     setCurrentDate(newDate);
     setSelectedDay(null);
     setSelectedHour(null);
-    // useEffect ile ay geçişinde eksik gün/saat otomatik eklenir
   };
 
-  // Güne tıklama ve 5 kere tıklama kontrolü
   const selectDay = (day) => {
     if (!day) return;
     setSelectedDay(day);
@@ -166,7 +162,6 @@ const MonthlyLessonScheduler = () => {
     const dateKey = getDateKey(currentDate, day);
     setDayClickCounts(prev => {
       const newCounts = { ...prev, [dateKey]: (prev[dateKey] || 0) + 1 };
-      // 5. tıklamada o günün tüm derslerini sıfırla
       if (newCounts[dateKey] === 5) {
         setMonthlySchedule(prevSchedule => {
           const newSchedule = { ...prevSchedule };
@@ -186,7 +181,6 @@ const MonthlyLessonScheduler = () => {
     });
   };
 
-  // Sağ panelde öğrenci seçme işlemi
   const handleStudentAssign = () => {
     if (!studentToAssign || !selectedDay || hourToAssign === null) return;
     const dateKey = getDateKey(currentDate, selectedDay);
@@ -219,7 +213,6 @@ const MonthlyLessonScheduler = () => {
         return newSchedule;
       });
 
-      // "Boş Zaman" ise sayaç artmasın
       if (cell.student === MONTHLY_FREE_DAY) {
         setSelectedHour(hour);
         return;
@@ -305,7 +298,6 @@ const MonthlyLessonScheduler = () => {
     });
   };
 
-  // GÜNÜN HERHANGİ BİR SAATİNDE "Boş Zaman" varsa o gün tatil günü olarak kabul edilir
   const getFreeDays = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -316,7 +308,6 @@ const MonthlyLessonScheduler = () => {
       const dateKey = `${year}-${month}-${day}`;
       const daySchedule = monthlySchedule[dateKey];
       if (daySchedule) {
-        // Günün herhangi bir saatinde "Boş Zaman" atanmışsa
         const isHoliday = Object.values(daySchedule).some(slot => slot.student === MONTHLY_FREE_DAY);
         if (isHoliday) freeDays.push(day);
       }
@@ -371,18 +362,13 @@ const MonthlyLessonScheduler = () => {
   const handleAddStudent = () => {
     const name = newStudentName.trim();
     if (!name || students.includes(name) || name === MONTHLY_FREE_DAY) return;
-    const newList = [...students];
-    // "Boş Zaman"ı listenin en sonunda tut
-    const freeDayIdx = newList.indexOf(MONTHLY_FREE_DAY);
-    if (freeDayIdx > -1) newList.splice(freeDayIdx, 0, name);
-    else newList.push(name);
-    setStudents(newList);
+    setStudents(prev => [...prev, name]);
     setStudentLessonCounts(counts => ({ ...counts, [name]: 0 }));
     setNewStudentName('');
     setShowAddStudent(false);
   };
 
-  // Öğrenci sil
+  // Öğrenci sil (takvimden de kaldır)
   const handleDeleteStudent = (name) => {
     if (name === MONTHLY_FREE_DAY) return;
     if (!window.confirm(`"${name}" adlı öğrenciyi silmek istiyor musunuz? Bu öğrenci programdan da silinir!`)) return;
@@ -391,7 +377,6 @@ const MonthlyLessonScheduler = () => {
       const { [name]: _, ...rest } = counts;
       return rest;
     });
-    // Takvimdeki atamaları da sil
     setMonthlySchedule(prev => {
       const newSchedule = { ...prev };
       Object.keys(newSchedule).forEach(dateKey => {
@@ -425,7 +410,20 @@ const MonthlyLessonScheduler = () => {
     });
   };
 
-  // KAYDET: Tüm schedule'ı, öğrenci sayaçlarını ve öğrencileri kaydeder
+  // Öğrenci saatini sil
+  const handleStudentTimeDelete = (dateKey, hour) => {
+    setMonthlySchedule(prev => {
+      const newSchedule = { ...prev };
+      newSchedule[dateKey][hour] = {
+        student: '',
+        isCompleted: false,
+        isFixed: false,
+        lessonCount: 0
+      };
+      return newSchedule;
+    });
+  };
+
   const handleSave = () => {
     localStorage.setItem(
       STORAGE_KEY,
@@ -442,7 +440,6 @@ const MonthlyLessonScheduler = () => {
   const stats = getMonthStats();
   const freeDays = getFreeDays();
 
-  // GÜN RENGİ: Eğer o günde herhangi bir boş zaman atanmışsa sarı, yoksa yeşil (veya normal)
   const getDayColor = (day) => {
     if (!day) return '';
     const dateKey = getDateKey(currentDate, day);
@@ -456,12 +453,10 @@ const MonthlyLessonScheduler = () => {
     return '';
   };
 
-  // MOBILE & responsive styles: w-full, overflow-auto, min/max-w/h, flex-wrap...
   return (
     <div className="flex flex-col lg:flex-row gap-4 p-2 bg-gray-50 min-h-screen overflow-auto">
       {/* Sol Panel - Aylık Takvim */}
       <div className="flex flex-col flex-shrink-0 w-full lg:w-[420px]">
-        {/* Ay Navigasyonu */}
         <div className="flex items-center justify-between mb-2 bg-white p-2 rounded-lg border-2 border-gray-300">
           <button
             onClick={() => changeMonth(-1)}
@@ -480,7 +475,7 @@ const MonthlyLessonScheduler = () => {
           </button>
         </div>
 
-        {/* Öğrenci Ekleme Butonu */}
+        {/* Yeni Öğrenci Ekle Butonu ve Kutusu */}
         <button
           className="mb-2 px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 w-full"
           onClick={() => setShowAddStudent(true)}
@@ -498,6 +493,7 @@ const MonthlyLessonScheduler = () => {
               onKeyDown={e => {
                 if (e.key === 'Enter') handleAddStudent();
               }}
+              autoFocus
             />
             <button
               className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 mr-2 text-xs"
@@ -507,24 +503,23 @@ const MonthlyLessonScheduler = () => {
             </button>
             <button
               className="px-3 py-1 bg-gray-400 text-white rounded hover:bg-gray-500 text-xs"
-              onClick={() => setShowAddStudent(false)}
+              onClick={() => {
+                setShowAddStudent(false);
+                setNewStudentName('');
+              }}
             >
               İptal
             </button>
           </div>
         )}
 
-        {/* Takvim Tablosu */}
         <div className="w-full max-w-[410px] min-h-[250px] h-[330px] sm:h-[370px] md:h-[400px] bg-white border-2 border-gray-300 rounded-lg overflow-auto">
           <div className="grid grid-cols-7 h-full">
-            {/* Gün başlıkları */}
             {dayNames.map(dayName => (
               <div key={dayName} className="bg-blue-100 border-r border-b border-gray-300 flex items-center justify-center font-bold text-xs sm:text-sm py-2">
                 {dayName}
               </div>
             ))}
-
-            {/* Günler */}
             {days.map((day, index) => {
               const dateKey = getDateKey(currentDate, day);
               return (
@@ -655,22 +650,37 @@ const MonthlyLessonScheduler = () => {
                         autoFocus
                       />
                     ) : (
-                      <div className="text-xs mt-1">{student || 'Boş'}</div>
+                      <div className="text-xs mt-1 flex items-center">
+                        {student || 'Boş'}
+                        {/* Eğer Boş Zaman ise sil butonu */}
+                        {isHoliday && (
+                          <button
+                            className="ml-2 px-2 py-1 bg-red-400 text-white rounded text-[10px] hover:bg-red-600"
+                            title='"Boş Zaman"ı sil veya başka bir şey ekle'
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleFreeTimeAction(dateKey, hour);
+                            }}
+                          >
+                            Sil
+                          </button>
+                        )}
+                        {/* Eğer öğrenci atanmışsa ve sabit değilse sil butonu */}
+                        {!isHoliday && student && !isFixed && (
+                          <button
+                            className="ml-2 px-2 py-1 bg-red-400 text-white rounded text-[10px] hover:bg-red-600"
+                            title="Öğrenci saatini sil"
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleStudentTimeDelete(dateKey, hour);
+                            }}
+                          >
+                            Sil
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
-                  {/* Eğer Boş Zaman ise sağda sil/değiştir butonu göster */}
-                  {isHoliday && (
-                    <button
-                      className="ml-2 px-2 py-1 bg-red-400 text-white rounded text-[10px] hover:bg-red-600"
-                      title='"Boş Zaman"ı sil veya başka bir şey ekle'
-                      onClick={e => {
-                        e.stopPropagation();
-                        handleFreeTimeAction(dateKey, hour);
-                      }}
-                    >
-                      Sil
-                    </button>
-                  )}
                 </div>
               );
             })}
@@ -685,23 +695,18 @@ const MonthlyLessonScheduler = () => {
       {/* Sağ Panel - İstatistikler ve Kontroller */}
       <div className="w-full lg:w-[320px] bg-white border-2 border-gray-300 rounded-lg p-3 flex-shrink-0 flex flex-col overflow-auto min-h-[320px]">
         <h3 className="font-bold text-base mb-3">Aylık Özet</h3>
-
-        {/* Otomatik Atama */}
         <button
           onClick={autoAssignLessons}
           className="w-full mb-2 px-3 py-2 bg-green-500 text-white rounded text-xs hover:bg-green-600"
         >
           Otomatik Ders Ata
         </button>
-        {/* KAYDET Butonu */}
         <button
           onClick={handleSave}
           className="w-full mb-3 px-3 py-2 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
         >
           KAYDET
         </button>
-
-        {/* Aylık İstatistikler */}
         <div className="mb-3 bg-gray-50 p-2 rounded">
           <h4 className="font-semibold mb-2 text-sm">Ay İstatistikleri</h4>
           <div className="space-y-1 text-xs">
@@ -729,8 +734,6 @@ const MonthlyLessonScheduler = () => {
             </div>
           </div>
         </div>
-
-        {/* Tatil Günlerim */}
         <div className="mb-3">
           <h4 className="font-semibold mb-2 text-sm">Tatil Günlerim</h4>
           <div className="flex flex-wrap gap-2">
@@ -742,8 +745,6 @@ const MonthlyLessonScheduler = () => {
             ))}
           </div>
         </div>
-
-        {/* Öğrenci Ders Sayıları ve Sil Butonu */}
         <div className="mb-3">
           <h4 className="font-semibold mb-2 text-sm">Öğrenci Durumu</h4>
           <div className="max-h-32 overflow-y-auto bg-gray-50 p-2 rounded text-xs">
@@ -764,8 +765,6 @@ const MonthlyLessonScheduler = () => {
             ))}
           </div>
         </div>
-
-        {/* Kullanım Bilgisi */}
         <div className="text-[10px] text-gray-600">
           <p>• Takvimden gün seçin</p>
           <p>• Saate tek tık: Dersi tamamla (Boş Zaman için sadece sarı yapar)</p>
@@ -776,7 +775,7 @@ const MonthlyLessonScheduler = () => {
           <p>• Mavi çerçeve: Sabit ders</p>
           <p>• Yeşil/Sarı: Tamamlanan/Bekleyen/Boş Zaman</p>
           <p>• Öğrenciler listesi: Sil ile silebilirsin, Ekle ile yeni öğrenci ekleyebilirsin.</p>
-          <p>• Takvimde “Boş Zaman” saatinin yanında Sil ile anında kaldırabilirsin ve başka bir şey atayabilirsin.</p>
+          <p>• Takvimde “Boş Zaman” veya öğrenci saatinin yanında Sil ile anında kaldırabilirsin ve başka bir şey atayabilirsin.</p>
         </div>
       </div>
     </div>

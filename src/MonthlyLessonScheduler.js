@@ -12,6 +12,9 @@ for (let h = 8; h <= 20; h++) {
 }
 HOURS.push("21:00");
 
+// Gün başlıkları Pazartesi ile başlıyor
+const dayNames = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+
 const hourToKey = (hourStr) => hourStr.replace(":", "_");
 const keyToHour = (key) => key.replace("_", ":");
 
@@ -144,15 +147,16 @@ const MonthlyLessonScheduler = () => {
     'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
   ];
 
-  const dayNames = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
-
+  // Pazartesi başlayan takvim grid dizilimi (hafta başı Pazartesi)
   const getDaysInMonth = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const firstDay = new Date(year, month, 1);
+    let startDayOfWeek = firstDay.getDay(); // 0: Pazar, 1: Pazartesi, ...
+    // Haftanın ilk günü Pazartesi olacak şekilde kaydır
+    startDayOfWeek = (startDayOfWeek === 0) ? 6 : startDayOfWeek - 1;
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
-    const startDayOfWeek = firstDay.getDay();
 
     const days = [];
     for (let i = 0; i < startDayOfWeek; i++) {

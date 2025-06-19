@@ -4,16 +4,28 @@ const STORAGE_KEY = "monthlyLessonScheduler";
 const MONTHLY_FREE_DAY = "Boş Zaman";
 
 const MonthlyLessonScheduler = () => {
-  const [students] = useState([
-    'E Öykü', 'Güneş M', 'Asya A', 'Mila B', 'Duru B', 'Eda', 'Erva', 'Rengin',
-    'Miray', 'Toprak A', 'Erva K', 'İpek', 'Güneş O', 'Ecrin S', 'Ulaş Y', 'Ayşe Hanım', MONTHLY_FREE_DAY
-  ]);
+  // Öğrenci listesini localStorage'da da tutalım ki ekleme/silme kalıcı olsun
+  const [students, setStudents] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return parsed.students || [
+          'E Öykü', 'Güneş M', 'Asya A', 'Mila B', 'Duru B', 'Eda', 'Erva', 'Rengin',
+          'Miray', 'Toprak A', 'Erva K', 'İpek', 'Güneş O', 'Ecrin S', 'Ulaş Y', 'Ayşe Hanım', MONTHLY_FREE_DAY
+        ];
+      } catch {}
+    }
+    return [
+      'E Öykü', 'Güneş M', 'Asya A', 'Mila B', 'Duru B', 'Eda', 'Erva', 'Rengin',
+      'Miray', 'Toprak A', 'Erva K', 'İpek', 'Güneş O', 'Ecrin S', 'Ulaş Y', 'Ayşe Hanım', MONTHLY_FREE_DAY
+    ];
+  });
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedHour, setSelectedHour] = useState(null);
 
-  // Ana schedule, her ayın gün/saatlerini ve atamalarını içerir
   const [monthlySchedule, setMonthlySchedule] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -47,6 +59,10 @@ const MonthlyLessonScheduler = () => {
   const [showStudentSelect, setShowStudentSelect] = useState(false);
   const [studentToAssign, setStudentToAssign] = useState('');
   const [hourToAssign, setHourToAssign] = useState(null);
+
+  // Öğrenci Ekleme için
+  const [showAddStudent, setShowAddStudent] = useState(false);
+  const [newStudentName, setNewStudentName] = useState('');
 
   // Ay/gün anahtarını üret
   const getDateKey = (dateObj, day) => {
@@ -100,6 +116,7 @@ const MonthlyLessonScheduler = () => {
         const parsed = JSON.parse(saved);
         setMonthlySchedule(parsed.monthlySchedule || {});
         setStudentLessonCounts(parsed.studentLessonCounts || {});
+        if (parsed.students) setStudents(parsed.students);
       } catch {}
     }
     // eslint-disable-next-line
@@ -350,13 +367,72 @@ const MonthlyLessonScheduler = () => {
     return { totalLessons, completedLessons, freeSlots, holidayCount };
   };
 
-  // KAYDET: Tüm schedule'ı ve öğrenci sayaçlarını kaydeder
+  // Öğrenci ekle
+  const handleAddStudent = () => {
+    const name = newStudentName.trim();
+    if (!name || students.includes(name) || name === MONTHLY_FREE_DAY) return;
+    const newList = [...students];
+    // "Boş Zaman"ı listenin en sonunda tut
+    const freeDayIdx = newList.indexOf(MONTHLY_FREE_DAY);
+    if (freeDayIdx > -1) newList.splice(freeDayIdx, 0, name);
+    else newList.push(name);
+    setStudents(newList);
+    setStudentLessonCounts(counts => ({ ...counts, [name]: 0 }));
+    setNewStudentName('');
+    setShowAddStudent(false);
+  };
+
+  // Öğrenci sil
+  const handleDeleteStudent = (name) => {
+    if (name === MONTHLY_FREE_DAY) return;
+    if (!window.confirm(`"${name}" adlı öğrenciyi silmek istiyor musunuz? Bu öğrenci programdan da silinir!`)) return;
+    setStudents(students.filter(s => s !== name));
+    setStudentLessonCounts(counts => {
+      const { [name]: _, ...rest } = counts;
+      return rest;
+    });
+    // Takvimdeki atamaları da sil
+    setMonthlySchedule(prev => {
+      const newSchedule = { ...prev };
+      Object.keys(newSchedule).forEach(dateKey => {
+        Object.keys(newSchedule[dateKey]).forEach(hour => {
+          if (newSchedule[dateKey][hour].student === name) {
+            newSchedule[dateKey][hour] = {
+              student: '',
+              isCompleted: false,
+              isFixed: false,
+              lessonCount: 0
+            };
+          }
+        });
+      });
+      return newSchedule;
+    });
+  };
+
+  // "Boş Zaman" sil veya değiştir
+  const handleFreeTimeAction = (dateKey, hour) => {
+    if (!window.confirm('Bu "Boş Zaman"ı silmek/değiştirmek istiyor musunuz?')) return;
+    setMonthlySchedule(prev => {
+      const newSchedule = { ...prev };
+      newSchedule[dateKey][hour] = {
+        student: '',
+        isCompleted: false,
+        isFixed: false,
+        lessonCount: 0
+      };
+      return newSchedule;
+    });
+  };
+
+  // KAYDET: Tüm schedule'ı, öğrenci sayaçlarını ve öğrencileri kaydeder
   const handleSave = () => {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
         monthlySchedule,
         studentLessonCounts,
+        students,
       })
     );
     alert("Program kaydedildi!");
@@ -403,6 +479,40 @@ const MonthlyLessonScheduler = () => {
             →
           </button>
         </div>
+
+        {/* Öğrenci Ekleme Butonu */}
+        <button
+          className="mb-2 px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 w-full"
+          onClick={() => setShowAddStudent(true)}
+        >
+          Yeni Öğrenci Ekle
+        </button>
+        {showAddStudent && (
+          <div className="mb-2 p-2 border rounded bg-gray-100">
+            <input
+              type="text"
+              className="w-full p-1 rounded border text-xs mb-2"
+              placeholder="Öğrenci adı"
+              value={newStudentName}
+              onChange={e => setNewStudentName(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleAddStudent();
+              }}
+            />
+            <button
+              className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 mr-2 text-xs"
+              onClick={handleAddStudent}
+            >
+              Ekle
+            </button>
+            <button
+              className="px-3 py-1 bg-gray-400 text-white rounded hover:bg-gray-500 text-xs"
+              onClick={() => setShowAddStudent(false)}
+            >
+              İptal
+            </button>
+          </div>
+        )}
 
         {/* Takvim Tablosu */}
         <div className="w-full max-w-[410px] min-h-[250px] h-[330px] sm:h-[370px] md:h-[400px] bg-white border-2 border-gray-300 rounded-lg overflow-auto">
@@ -517,6 +627,7 @@ const MonthlyLessonScheduler = () => {
             {getDaySchedule().map(({ hour, student, isCompleted, isFixed }) => {
               const isEditing = editingCell?.hour === hour;
               const isHoliday = student === MONTHLY_FREE_DAY;
+              const dateKey = getDateKey(currentDate, selectedDay);
               return (
                 <div
                   key={hour}
@@ -524,26 +635,41 @@ const MonthlyLessonScheduler = () => {
                     ${isCompleted && !isHoliday ? 'bg-green-200' : isHoliday ? 'bg-yellow-200' : 'bg-white'}
                     ${isFixed ? 'ring-2 ring-blue-400' : ''}
                     ${selectedHour === hour ? 'border-blue-500' : 'border-gray-300'}
-                    hover:bg-gray-50`}
+                    hover:bg-gray-50 flex items-center justify-between`}
                   onClick={() => handleHourClick(hour)}
                   onDoubleClick={() => handleDoubleClick(hour)}
                 >
-                  <div className="flex justify-between items-center">
-                    <span className="font-semibold">{hour}:00</span>
-                    {isFixed && <span className="text-blue-500 text-xs">Sabit</span>}
+                  <div className="flex flex-col flex-1">
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold">{hour}:00</span>
+                      {isFixed && <span className="text-blue-500 text-xs">Sabit</span>}
+                    </div>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={saveEdit}
+                        onKeyPress={(e) => e.key === 'Enter' && saveEdit()}
+                        className="w-full mt-1 text-xs bg-transparent border-none outline-none"
+                        autoFocus
+                      />
+                    ) : (
+                      <div className="text-xs mt-1">{student || 'Boş'}</div>
+                    )}
                   </div>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={saveEdit}
-                      onKeyPress={(e) => e.key === 'Enter' && saveEdit()}
-                      className="w-full mt-1 text-xs bg-transparent border-none outline-none"
-                      autoFocus
-                    />
-                  ) : (
-                    <div className="text-xs mt-1">{student || 'Boş'}</div>
+                  {/* Eğer Boş Zaman ise sağda sil/değiştir butonu göster */}
+                  {isHoliday && (
+                    <button
+                      className="ml-2 px-2 py-1 bg-red-400 text-white rounded text-[10px] hover:bg-red-600"
+                      title='"Boş Zaman"ı sil veya başka bir şey ekle'
+                      onClick={e => {
+                        e.stopPropagation();
+                        handleFreeTimeAction(dateKey, hour);
+                      }}
+                    >
+                      Sil
+                    </button>
                   )}
                 </div>
               );
@@ -617,14 +743,23 @@ const MonthlyLessonScheduler = () => {
           </div>
         </div>
 
-        {/* Öğrenci Ders Sayıları */}
+        {/* Öğrenci Ders Sayıları ve Sil Butonu */}
         <div className="mb-3">
           <h4 className="font-semibold mb-2 text-sm">Öğrenci Durumu</h4>
           <div className="max-h-32 overflow-y-auto bg-gray-50 p-2 rounded text-xs">
             {students.filter(s => s !== MONTHLY_FREE_DAY).map(student => (
-              <div key={student} className="flex justify-between mb-1">
+              <div key={student} className="flex justify-between items-center mb-1">
                 <span>{student}</span>
-                <span className="font-medium">{studentLessonCounts[student] || 0}/4</span>
+                <span>
+                  <span className="font-medium">{studentLessonCounts[student] || 0}/4</span>
+                  <button
+                    className="ml-2 px-2 py-1 bg-red-400 text-white rounded text-[10px] hover:bg-red-600"
+                    title="Öğrenciyi sil"
+                    onClick={() => handleDeleteStudent(student)}
+                  >
+                    Sil
+                  </button>
+                </span>
               </div>
             ))}
           </div>
@@ -640,6 +775,8 @@ const MonthlyLessonScheduler = () => {
           <p>• Öğrenci veya Boş Zaman Seç: O gün ve saatte öğrenci veya tatil ata</p>
           <p>• Mavi çerçeve: Sabit ders</p>
           <p>• Yeşil/Sarı: Tamamlanan/Bekleyen/Boş Zaman</p>
+          <p>• Öğrenciler listesi: Sil ile silebilirsin, Ekle ile yeni öğrenci ekleyebilirsin.</p>
+          <p>• Takvimde “Boş Zaman” saatinin yanında Sil ile anında kaldırabilirsin ve başka bir şey atayabilirsin.</p>
         </div>
       </div>
     </div>

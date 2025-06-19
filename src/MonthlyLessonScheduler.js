@@ -76,6 +76,9 @@ const MonthlyLessonScheduler = () => {
   // Öğrenci detay kartı için
   const [selectedStudentForPanel, setSelectedStudentForPanel] = useState(null);
 
+  // Tatil için seçilen saat
+  const [vacationHour, setVacationHour] = useState(null); // örnek: "13:00"
+
   // Ay/gün anahtarını üret
   const getDateKey = (dateObj, day) => {
     const year = dateObj.getFullYear();
@@ -168,6 +171,7 @@ const MonthlyLessonScheduler = () => {
     setSelectedDay(null);
     setSelectedHour(null);
     setShowAssignPanel(false);
+    setVacationHour(null);
   };
 
   // Seçili güne tıklayınca sadece öğrenci-saat-mekan seçme paneli gelsin
@@ -179,6 +183,7 @@ const MonthlyLessonScheduler = () => {
     setHourToAssign('');
     setLocationToAssign(LOCATIONS[0]);
     setSelectedHour(null);
+    setVacationHour(null);
   };
 
   // 5 kez güne tıklayınca sıfırlama
@@ -213,6 +218,7 @@ const MonthlyLessonScheduler = () => {
     setHourToAssign('');
     setLocationToAssign(LOCATIONS[0]);
     setSelectedHour(null);
+    setVacationHour(null);
 
     const dateKey = getDateKey(currentDate, day);
     setDayClickCounts(prev => ({
@@ -237,6 +243,30 @@ const MonthlyLessonScheduler = () => {
       };
       return newSchedule;
     });
+    setShowAssignPanel(false);
+    setStudentToAssign('');
+    setHourToAssign('');
+    setLocationToAssign(LOCATIONS[0]);
+    setVacationHour(null);
+  };
+
+  // Tatil butonu: seçili güne ve seçili saate "Boş Zaman" atanır ve vacationHour state'i güncellenir
+  const handleVacation = () => {
+    if (!selectedDay || !hourToAssign) return;
+    const dateKey = getDateKey(currentDate, selectedDay);
+    const hKey = hourToKey(hourToAssign);
+    setMonthlySchedule(prev => {
+      const newSchedule = { ...prev };
+      newSchedule[dateKey][hKey] = {
+        student: MONTHLY_FREE_DAY,
+        isCompleted: false,
+        isFixed: false,
+        lessonCount: 0,
+        location: ''
+      };
+      return newSchedule;
+    });
+    setVacationHour(hourToAssign);
     setShowAssignPanel(false);
     setStudentToAssign('');
     setHourToAssign('');
@@ -661,18 +691,28 @@ const MonthlyLessonScheduler = () => {
                 ))}
               </select>
             </div>
-            <button
-              className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 mr-2 text-xs"
-              onClick={handleAssign}
-            >
-              Ata
-            </button>
-            <button
-              className="px-3 py-1 bg-gray-400 text-white rounded hover:bg-gray-500 text-xs"
-              onClick={() => setShowAssignPanel(false)}
-            >
-              İptal
-            </button>
+            <div className="flex gap-2">
+              <button
+                className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-xs"
+                onClick={handleAssign}
+              >
+                Ata
+              </button>
+              <button
+                className="px-3 py-1 bg-yellow-400 text-white rounded hover:bg-yellow-500 text-xs"
+                onClick={handleVacation}
+                disabled={!hourToAssign}
+                style={{ opacity: hourToAssign ? 1 : 0.6 }}
+              >
+                Tatil
+              </button>
+              <button
+                className="px-3 py-1 bg-gray-400 text-white rounded hover:bg-gray-500 text-xs"
+                onClick={() => setShowAssignPanel(false)}
+              >
+                İptal
+              </button>
+            </div>
           </div>
         )}
         {selectedDay && (
@@ -682,11 +722,13 @@ const MonthlyLessonScheduler = () => {
               const isHoliday = student === MONTHLY_FREE_DAY;
               const redCol = student && isFourthLesson(student, isCompleted);
               const isEditing = editingCell?.hour === hour;
+              // Tatil atanmış saat: vacationHour === hour
+              const isVacationBar = vacationHour === hour;
               return (
                 <div
                   key={idx}
                   className={`p-2 border rounded cursor-pointer text-xs sm:text-sm flex items-center justify-between
-                  ${isCompleted && !isHoliday ? 'bg-green-200' : redCol ? 'bg-red-300' : isHoliday ? 'bg-yellow-200' : 'bg-white'}
+                  ${isVacationBar ? 'bg-yellow-300' : isCompleted && !isHoliday ? 'bg-green-200' : redCol ? 'bg-red-300' : isHoliday ? 'bg-yellow-200' : 'bg-white'}
                   ${isFixed ? 'ring-2 ring-blue-400' : ''}
                   ${selectedHour === hour ? 'border-blue-500' : 'border-gray-300'}
                   hover:bg-gray-50`}
@@ -836,6 +878,7 @@ const MonthlyLessonScheduler = () => {
             <p>• Yeşil/Sarı/Kırmızı: Tamamlanan/Bekleyen/4. ders (sadece ders kutusu kırmızı)</p>
             <p>• Takvim dış görünümü değişmez</p>
             <p>• Sağdaki öğrenci adlarına tıkla: O öğrencinin geçmiş tamamlanan derslerini ve detaylarını görürsün</p>
+            <p>• Tatil: "Tatil" butonunu kullanınca ilgili saat barı sarı görünür.</p>
           </div>
         </div>
         {/* Öğrenci Detay Paneli */}

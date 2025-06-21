@@ -1,4 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+
+// === KULLANICI GİRİŞİ VE UZAKTAN KAYIT DESTEĞİ ===
+
+const CLOUD_URL = "https://api.jsonbin.io/v3/b/YOUR_BIN_ID"; // örn: "https://api.jsonbin.io/v3/b/665b1e9fecf8c34f8722f34e"
+const CLOUD_SECRET = "YOUR_BIN_SECRET"; // örn: "$2b$10$XXXXXX..."
 
 const STORAGE_KEY = "monthlyLessonScheduler";
 const MONTHLY_FREE_DAY = "Boş Zaman";
@@ -13,29 +19,65 @@ for (let h = 8; h <= 20; h++) {
 HOURS.push("21:00");
 
 // Gün başlıkları Pazartesi ile başlıyor
-const dayNames = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+const dayNames = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 
 const hourToKey = (hourStr) => hourStr.replace(":", "_");
 const keyToHour = (key) => key.replace("_", ":");
 
-const MonthlyLessonScheduler = () => {
-  const [students, setStudents] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return parsed.students || [
-          'E Öykü', 'Güneş M', 'Asya A', 'Mila B', 'Duru B', 'Eda', 'Erva', 'Rengin',
-          'Miray', 'Toprak A', 'Erva K', 'İpek', 'Güneş O', 'Ecrin S', 'Ulaş Y', 'Ayşe Hanım', MONTHLY_FREE_DAY
-        ];
-      } catch {}
-    }
-    return [
-      'E Öykü', 'Güneş M', 'Asya A', 'Mila B', 'Duru B', 'Eda', 'Erva', 'Rengin',
-      'Miray', 'Toprak A', 'Erva K', 'İpek', 'Güneş O', 'Ecrin S', 'Ulaş Y', 'Ayşe Hanım', MONTHLY_FREE_DAY
-    ];
-  });
+// --- LOGIN PANEL ---
+function LoginPanel({ onLogin }) {
+  const [user, setUser] = useState("");
+  const [pass, setPass] = useState("");
+  const [error, setError] = useState("");
 
+  function handleLogin(e) {
+    e.preventDefault();
+    if (user === "sukran" && pass === "1234") {
+      onLogin();
+    } else {
+      setError("Kullanıcı adı veya şifre hatalı!");
+    }
+  }
+
+  return (
+    <div style={{ width: 320, margin: "80px auto", padding: 32, border: "1px solid #ddd", borderRadius: 12, background: "#fff" }}>
+      <h2 style={{ textAlign: "center", marginBottom: 24 }}>Giriş Yap</h2>
+      <form onSubmit={handleLogin}>
+        <input
+          type="text"
+          placeholder="Kullanıcı Adı"
+          value={user}
+          onChange={e => setUser(e.target.value)}
+          style={{ width: "100%", marginBottom: 12, padding: 8, borderRadius: 6, border: "1px solid #bbb" }}
+        />
+        <input
+          type="password"
+          placeholder="Şifre"
+          value={pass}
+          onChange={e => setPass(e.target.value)}
+          style={{ width: "100%", marginBottom: 12, padding: 8, borderRadius: 6, border: "1px solid #bbb" }}
+        />
+        <button type="submit" style={{ width: "100%", padding: 10, borderRadius: 6, background: "#29916f", color: "#fff", fontWeight: 700, border: "none" }}>
+          Giriş
+        </button>
+        {error && <div style={{ color: "red", marginTop: 12 }}>{error}</div>}
+      </form>
+    </div>
+  );
+}
+
+const MonthlyLessonScheduler = () => {
+  // --- LOGIN STATE ---
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // --- UZAKTAN YÜKLENEN STATE'LER ---
+  const [students, setStudents] = useState([
+    "E Öykü", "Güneş M", "Asya A", "Mila B", "Duru B", "Eda", "Erva", "Rengin",
+    "Miray", "Toprak A", "Erva K", "İpek", "Güneş O", "Ecrin S", "Ulaş Y", "Ayşe Hanım", MONTHLY_FREE_DAY
+  ]);
+  const [monthlySchedule, setMonthlySchedule] = useState({});
+  const [studentLessonCounts, setStudentLessonCounts] = useState({});
+  // --- LOCAL STATE'LER ---
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
   const [showAssignPanel, setShowAssignPanel] = useState(false);
@@ -43,53 +85,43 @@ const MonthlyLessonScheduler = () => {
   const [hourToAssign, setHourToAssign] = useState('');
   const [locationToAssign, setLocationToAssign] = useState(LOCATIONS[0]);
   const [selectedHour, setSelectedHour] = useState(null);
-
-  const [monthlySchedule, setMonthlySchedule] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return parsed.monthlySchedule || {};
-      } catch {}
-    }
-    return {};
-  });
-
-  const [studentLessonCounts, setStudentLessonCounts] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return parsed.studentLessonCounts || {};
-      } catch {}
-    }
-    const counts = {};
-    students.forEach(student => {
-      counts[student] = 0;
-    });
-    return counts;
-  });
-
   const [editingCell, setEditingCell] = useState(null);
   const [editValue, setEditValue] = useState('');
-  // Öğrenci ekleme için
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
-  // Öğrenci detay kartı için
   const [selectedStudentForPanel, setSelectedStudentForPanel] = useState(null);
+  const [vacationHour, setVacationHour] = useState(null);
 
-  // Tatil için seçilen saat
-  const [vacationHour, setVacationHour] = useState(null); // örnek: "13:00"
-
-  // Ay/gün anahtarını üret
-  const getDateKey = (dateObj, day) => {
-    const year = dateObj.getFullYear();
-    const month = dateObj.getMonth();
-    return `${year}-${month}-${day}`;
-  };
+  // --- UZAKTAN YÜKLEME ---
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    async function fetchCloudData() {
+      try {
+        const res = await axios.get(CLOUD_URL, {
+          headers: { "X-Access-Key": CLOUD_SECRET }
+        });
+        const data = res.data.record || {};
+        setStudents(data.students || [
+          "E Öykü", "Güneş M", "Asya A", "Mila B", "Duru B", "Eda", "Erva", "Rengin",
+          "Miray", "Toprak A", "Erva K", "İpek", "Güneş O", "Ecrin S", "Ulaş Y", "Ayşe Hanım", MONTHLY_FREE_DAY
+        ]);
+        setMonthlySchedule(data.monthlySchedule || {});
+        setStudentLessonCounts(data.studentLessonCounts || {});
+      } catch (err) {
+        setStudents([
+          "E Öykü", "Güneş M", "Asya A", "Mila B", "Duru B", "Eda", "Erva", "Rengin",
+          "Miray", "Toprak A", "Erva K", "İpek", "Güneş O", "Ecrin S", "Ulaş Y", "Ayşe Hanım", MONTHLY_FREE_DAY
+        ]);
+        setMonthlySchedule({});
+        setStudentLessonCounts({});
+      }
+    }
+    fetchCloudData();
+  }, [isLoggedIn]);
 
   // Ay takvimi için eksik günleri schedule'a ekle (her geçişte veya ilk açılışta)
   useEffect(() => {
+    if (!isLoggedIn) return;
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -124,35 +156,20 @@ const MonthlyLessonScheduler = () => {
       }
       return newSchedule;
     });
-    // eslint-disable-next-line
-  }, [currentDate]);
+  }, [currentDate, isLoggedIn]);
 
-  // LocalStorage'dan ilk yükleme
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setMonthlySchedule(parsed.monthlySchedule || {});
-        setStudentLessonCounts(parsed.studentLessonCounts || {});
-        if (parsed.students) setStudents(parsed.students);
-      } catch {}
-    }
-    // eslint-disable-next-line
-  }, []);
+  // Ay/gün anahtarını üret
+  const getDateKey = (dateObj, day) => {
+    const year = dateObj.getFullYear();
+    const month = dateObj.getMonth();
+    return `${year}-${month}-${day}`;
+  };
 
-  const monthNames = [
-    'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-    'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
-  ];
-
-  // Pazartesi başlayan takvim grid dizilimi (hafta başı Pazartesi)
   const getDaysInMonth = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const firstDay = new Date(year, month, 1);
-    let startDayOfWeek = firstDay.getDay(); // 0: Pazar, 1: Pazartesi, ...
-    // Haftanın ilk günü Pazartesi olacak şekilde kaydır
+    let startDayOfWeek = firstDay.getDay();
     startDayOfWeek = (startDayOfWeek === 0) ? 6 : startDayOfWeek - 1;
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
@@ -177,7 +194,6 @@ const MonthlyLessonScheduler = () => {
     setVacationHour(null);
   };
 
-  // Seçili güne tıklayınca sadece öğrenci-saat-mekan seçme paneli gelsin
   const selectDay = (day) => {
     if (!day) return;
     setSelectedDay(day);
@@ -189,7 +205,6 @@ const MonthlyLessonScheduler = () => {
     setVacationHour(null);
   };
 
-  // Güne tıklama
   const handleDayClick = (day) => {
     if (!day) return;
     setSelectedDay(day);
@@ -201,7 +216,6 @@ const MonthlyLessonScheduler = () => {
     setVacationHour(null);
   };
 
-  // Atama paneli: öğrenci, saat, mekan
   const handleAssign = () => {
     if (!studentToAssign || !hourToAssign || !selectedDay || !locationToAssign) return;
     const dateKey = getDateKey(currentDate, selectedDay);
@@ -226,16 +240,12 @@ const MonthlyLessonScheduler = () => {
   };
 
   // --- TÜM HAFTALARA UYGULA ---
-  // Bu fonksiyon, seçili gün ve saatten itibaren 2 ay boyunca ilgili haftanın o günü/o saatine atama yapar.
   const handleAssignAllWeeks = () => {
     if (!studentToAssign || !hourToAssign || !selectedDay || !locationToAssign) return;
 
     const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), selectedDay);
-    const targetDayOfWeek = startDate.getDay(); // 0: Pazar, 1: Pazartesi, ...
-    // Haftanın ilk günü Pazartesi ise, dayNames[0] == Pazartesi, Date.getDay() == 1
-    // Yani targetDayOfWeek doğrudan kullanılabilir
+    const targetDayOfWeek = startDate.getDay();
 
-    // 2 ay boyunca (bu ay + sonraki ay) işle
     let monthsToCheck = [
       { year: currentDate.getFullYear(), month: currentDate.getMonth() },
       { year: currentDate.getMonth() === 11 ? currentDate.getFullYear() + 1 : currentDate.getFullYear(), month: (currentDate.getMonth() + 1) % 12 }
@@ -248,7 +258,6 @@ const MonthlyLessonScheduler = () => {
       for (let day = 1; day <= daysInMonth; day++) {
         const dateObj = new Date(year, month, day);
         if (
-          // Seçtiğim günden başlasın (ilk ayda)
           (year > currentDate.getFullYear() || month > currentDate.getMonth() || day >= selectedDay)
           &&
           dateObj.getDay() === targetDayOfWeek
@@ -267,12 +276,10 @@ const MonthlyLessonScheduler = () => {
     });
 
     setMonthlySchedule(prev => {
-      // Eğer sonraki ay için schedule'da eksik günler varsa ekle
       let newSchedule = { ...prev };
       Object.keys(assignments).forEach(dateKey => {
         if (!newSchedule[dateKey]) {
           newSchedule[dateKey] = {};
-          // Tüm saatler boşla açılır
           for (let h = 0; h < HOURS.length; h++) {
             newSchedule[dateKey][hourToKey(HOURS[h])] = {
               student: '',
@@ -283,7 +290,6 @@ const MonthlyLessonScheduler = () => {
             };
           }
         }
-        // Seçilen saat için atama
         newSchedule[dateKey][hourToKey(hourToAssign)] = assignments[dateKey][hourToKey(hourToAssign)];
       });
       return newSchedule;
@@ -296,7 +302,6 @@ const MonthlyLessonScheduler = () => {
     setVacationHour(null);
   };
 
-  // Tatil butonu: seçili güne ve seçili saate "Boş Zaman" atanır ve vacationHour state'i güncellenir
   const handleVacation = () => {
     if (!selectedDay || !hourToAssign) return;
     const dateKey = getDateKey(currentDate, selectedDay);
@@ -319,7 +324,6 @@ const MonthlyLessonScheduler = () => {
     setLocationToAssign(LOCATIONS[0]);
   };
 
-  // Günlük ders çizimi
   const getDaySchedule = () => {
     if (!selectedDay) return [];
     const dateKey = getDateKey(currentDate, selectedDay);
@@ -333,7 +337,6 @@ const MonthlyLessonScheduler = () => {
     });
   };
 
-  // Öğrencinin o ayki tamamlanan ders sayısı
   const getStudentLessonCount = (studentName) => {
     let count = 0;
     Object.entries(monthlySchedule).forEach(([dateKey, hoursObj]) => {
@@ -346,14 +349,12 @@ const MonthlyLessonScheduler = () => {
     return count;
   };
 
-  // Slot "kırmızı" mı? Bu slotta atanmış öğrenci o ay 3 ders tamamladıysa ve bu slot henüz tamamlanmadıysa
   const isFourthLesson = (studentName, isCompleted) => {
     if (!studentName || studentName === MONTHLY_FREE_DAY) return false;
     const count = getStudentLessonCount(studentName);
     return count === 3 && !isCompleted;
   };
 
-  // Saat kutusuna tıklayınca dersi tamamla (görsel güncelleme)
   const handleHourClick = (hour) => {
     if (!selectedDay) return;
     const dateKey = getDateKey(currentDate, selectedDay);
@@ -371,7 +372,6 @@ const MonthlyLessonScheduler = () => {
     }
   };
 
-  // Sil butonları
   const handleFreeTimeAction = (dateKey, hour) => {
     setMonthlySchedule(prev => {
       const newSchedule = { ...prev };
@@ -385,6 +385,7 @@ const MonthlyLessonScheduler = () => {
       return newSchedule;
     });
   };
+
   const handleStudentTimeDelete = (dateKey, hour) => {
     setMonthlySchedule(prev => {
       const newSchedule = { ...prev };
@@ -399,7 +400,6 @@ const MonthlyLessonScheduler = () => {
     });
   };
 
-  // Edit (çift tık) kutusu
   const handleDoubleClick = (hour) => {
     if (!selectedDay) return;
     const dateKey = getDateKey(currentDate, selectedDay);
@@ -427,7 +427,6 @@ const MonthlyLessonScheduler = () => {
     }
   };
 
-  // Otomatik atama: Her öğrenciden ayda birer tane boş slot varsa ders ata
   const autoAssignLessons = () => {
     setMonthlySchedule(prevSchedule => {
       const newSchedule = { ...prevSchedule };
@@ -465,7 +464,6 @@ const MonthlyLessonScheduler = () => {
     });
   };
 
-  // GÜNÜN HERHANGİ BİR SAATİNDE "Boş Zaman" varsa o gün tatil günü olarak kabul edilir
   const getFreeDays = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -483,7 +481,6 @@ const MonthlyLessonScheduler = () => {
     return freeDays;
   };
 
-  // Ay genel istatistikleri
   const getMonthStats = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -515,14 +512,13 @@ const MonthlyLessonScheduler = () => {
     return { totalLessons, completedLessons, freeSlots, holidayCount };
   };
 
-  // Öğrenci detayları
   const getStudentLessonsDetail = (studentName) => {
     const lessons = [];
     Object.entries(monthlySchedule).forEach(([dateKey, hoursObj]) => {
       Object.entries(hoursObj).forEach(([hour, slot]) => {
         if (
           slot.student === studentName &&
-          slot.isCompleted // sadece tamamlanan dersler
+          slot.isCompleted
         ) {
           const [year, month, day] = dateKey.split('-');
           lessons.push({
@@ -541,7 +537,6 @@ const MonthlyLessonScheduler = () => {
     });
   };
 
-  // Öğrenci ekle/sil
   const handleAddStudent = () => {
     const name = newStudentName.trim();
     if (!name || students.includes(name) || name === MONTHLY_FREE_DAY) return;
@@ -577,24 +572,29 @@ const MonthlyLessonScheduler = () => {
     });
   };
 
-  // KAYDET
-  const handleSave = () => {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
+  const handleSave = async () => {
+    try {
+      await axios.put(CLOUD_URL, {
+        students,
         monthlySchedule,
         studentLessonCounts,
-        students,
-      })
-    );
-    alert("Program kaydedildi!");
+      }, {
+        headers: { "X-Access-Key": CLOUD_SECRET, "Content-Type": "application/json" }
+      });
+      alert("Kayıt merkezi olarak buluta kaydedildi!");
+    } catch (e) {
+      alert("Hata! Veri kaydedilemedi.");
+    }
   };
 
   const days = getDaysInMonth();
   const stats = getMonthStats();
   const freeDays = getFreeDays();
+  const monthNames = [
+    'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+    'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
+  ];
 
-  // Takvim renkleri: kırmızı sadece slot için, gün kutusuna asla yansımaz.
   const getDayColor = (day) => {
     if (!day) return '';
     const dateKey = getDateKey(currentDate, day);
@@ -606,6 +606,8 @@ const MonthlyLessonScheduler = () => {
     if (hasCompletedOther) return 'bg-green-200 border-green-400';
     return '';
   };
+
+  if (!isLoggedIn) return <LoginPanel onLogin={() => setIsLoggedIn(true)} />;
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 p-2 bg-gray-50 min-h-screen overflow-auto">
@@ -776,7 +778,6 @@ const MonthlyLessonScheduler = () => {
               const isHoliday = student === MONTHLY_FREE_DAY;
               const redCol = student && isFourthLesson(student, isCompleted);
               const isEditing = editingCell?.hour === hour;
-              // Tatil atanmış saat: vacationHour === hour
               const isVacationBar = vacationHour === hour;
               return (
                 <div
@@ -858,7 +859,6 @@ const MonthlyLessonScheduler = () => {
           >
             KAYDET
           </button>
-          {/* ... İstatistik, tatil günleri, öğrenci durumu, açıklamalar ... */}
           <div className="mb-3 bg-gray-50 p-2 rounded">
             <h4 className="font-semibold mb-2 text-sm">Ay İstatistikleri</h4>
             <div className="space-y-1 text-xs">
@@ -935,7 +935,6 @@ const MonthlyLessonScheduler = () => {
             <p>• Tatil: "Tatil" butonunu kullanınca ilgili saat barı sarı görünür.</p>
           </div>
         </div>
-        {/* Öğrenci Detay Paneli */}
         {selectedStudentForPanel && (
           <div className="bg-white border-2 border-blue-400 rounded-lg p-3 mt-2">
             <div className="flex items-center justify-between mb-2">

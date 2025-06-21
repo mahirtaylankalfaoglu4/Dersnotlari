@@ -72,7 +72,6 @@ const MonthlyLessonScheduler = () => {
 
   const [editingCell, setEditingCell] = useState(null);
   const [editValue, setEditValue] = useState('');
-  // const [dayClickCounts, setDayClickCounts] = useState({});  // KALDIRILDI
   // Öğrenci ekleme için
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
@@ -200,7 +199,6 @@ const MonthlyLessonScheduler = () => {
     setLocationToAssign(LOCATIONS[0]);
     setSelectedHour(null);
     setVacationHour(null);
-    // Artık herhangi bir otomatik sıfırlama yok!
   };
 
   // Atama paneli: öğrenci, saat, mekan
@@ -220,6 +218,77 @@ const MonthlyLessonScheduler = () => {
       };
       return newSchedule;
     });
+    setShowAssignPanel(false);
+    setStudentToAssign('');
+    setHourToAssign('');
+    setLocationToAssign(LOCATIONS[0]);
+    setVacationHour(null);
+  };
+
+  // --- TÜM HAFTALARA UYGULA ---
+  // Bu fonksiyon, seçili gün ve saatten itibaren 2 ay boyunca ilgili haftanın o günü/o saatine atama yapar.
+  const handleAssignAllWeeks = () => {
+    if (!studentToAssign || !hourToAssign || !selectedDay || !locationToAssign) return;
+
+    const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), selectedDay);
+    const targetDayOfWeek = startDate.getDay(); // 0: Pazar, 1: Pazartesi, ...
+    // Haftanın ilk günü Pazartesi ise, dayNames[0] == Pazartesi, Date.getDay() == 1
+    // Yani targetDayOfWeek doğrudan kullanılabilir
+
+    // 2 ay boyunca (bu ay + sonraki ay) işle
+    let monthsToCheck = [
+      { year: currentDate.getFullYear(), month: currentDate.getMonth() },
+      { year: currentDate.getMonth() === 11 ? currentDate.getFullYear() + 1 : currentDate.getFullYear(), month: (currentDate.getMonth() + 1) % 12 }
+    ];
+
+    let assignments = {};
+
+    monthsToCheck.forEach(({ year, month }) => {
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateObj = new Date(year, month, day);
+        if (
+          // Seçtiğim günden başlasın (ilk ayda)
+          (year > currentDate.getFullYear() || month > currentDate.getMonth() || day >= selectedDay)
+          &&
+          dateObj.getDay() === targetDayOfWeek
+        ) {
+          const dateKey = `${year}-${month}-${day}`;
+          if (!assignments[dateKey]) assignments[dateKey] = {};
+          assignments[dateKey][hourToKey(hourToAssign)] = {
+            student: studentToAssign,
+            isCompleted: false,
+            isFixed: false,
+            lessonCount: 1,
+            location: locationToAssign
+          };
+        }
+      }
+    });
+
+    setMonthlySchedule(prev => {
+      // Eğer sonraki ay için schedule'da eksik günler varsa ekle
+      let newSchedule = { ...prev };
+      Object.keys(assignments).forEach(dateKey => {
+        if (!newSchedule[dateKey]) {
+          newSchedule[dateKey] = {};
+          // Tüm saatler boşla açılır
+          for (let h = 0; h < HOURS.length; h++) {
+            newSchedule[dateKey][hourToKey(HOURS[h])] = {
+              student: '',
+              isCompleted: false,
+              isFixed: false,
+              lessonCount: 0,
+              location: ''
+            };
+          }
+        }
+        // Seçilen saat için atama
+        newSchedule[dateKey][hourToKey(hourToAssign)] = assignments[dateKey][hourToKey(hourToAssign)];
+      });
+      return newSchedule;
+    });
+
     setShowAssignPanel(false);
     setStudentToAssign('');
     setHourToAssign('');
@@ -668,7 +737,7 @@ const MonthlyLessonScheduler = () => {
                 ))}
               </select>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <button
                 className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-xs"
                 onClick={handleAssign}
@@ -682,6 +751,14 @@ const MonthlyLessonScheduler = () => {
                 style={{ opacity: hourToAssign ? 1 : 0.6 }}
               >
                 Tatil
+              </button>
+              <button
+                className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-800 text-xs"
+                onClick={handleAssignAllWeeks}
+                disabled={!studentToAssign || !hourToAssign || !locationToAssign}
+                title="Bu öğrenci, saat ve yeri bugünden itibaren 2 ay boyunca haftalık aynı güne uygular."
+              >
+                Tüm Haftalara Uygula
               </button>
               <button
                 className="px-3 py-1 bg-gray-400 text-white rounded hover:bg-gray-500 text-xs"
@@ -850,7 +927,7 @@ const MonthlyLessonScheduler = () => {
             <p>• Saate tıkla: Dersi tamamla (Boş Zaman için sadece sarı yapar)</p>
             <p>• Saate çift tık: İsim değiştir</p>
             <p>• KAYDET: Programı kaydet</p>
-            <p>• Güne 5 kere tıkla: O günün tüm derslerini sıfırla</p>
+            <p>• Tüm Haftalara Uygula: Seçili öğrenci-saat-yer ile 2 ay boyunca o haftanın aynı günü ve saatine uygular</p>
             <p>• Mavi çerçeve: Sabit ders</p>
             <p>• Yeşil/Sarı/Kırmızı: Tamamlanan/Bekleyen/4. ders (sadece ders kutusu kırmızı)</p>
             <p>• Takvim dış görünümü değişmez</p>

@@ -72,7 +72,7 @@ const MonthlyLessonScheduler = () => {
 
   const [editingCell, setEditingCell] = useState(null);
   const [editValue, setEditValue] = useState('');
-  const [dayClickCounts, setDayClickCounts] = useState({});
+  // const [dayClickCounts, setDayClickCounts] = useState({});  // KALDIRILDI
   // Öğrenci ekleme için
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
@@ -190,30 +190,7 @@ const MonthlyLessonScheduler = () => {
     setVacationHour(null);
   };
 
-  // 5 kez güne tıklayınca sıfırlama
-  useEffect(() => {
-    if (!selectedDay) return;
-    const dateKey = getDateKey(currentDate, selectedDay);
-    if (dayClickCounts[dateKey] === 5) {
-      setMonthlySchedule(prevSchedule => {
-        const newSchedule = { ...prevSchedule };
-        Object.keys(newSchedule[dateKey]).forEach(hour => {
-          newSchedule[dateKey][hour] = {
-            student: '',
-            isCompleted: false,
-            isFixed: false,
-            lessonCount: 0,
-            location: ''
-          };
-        });
-        return newSchedule;
-      });
-      setDayClickCounts(prev => ({ ...prev, [dateKey]: 0 }));
-    }
-    // eslint-disable-next-line
-  }, [dayClickCounts]);
-
-  // Güne tıklama ve 5 kez tıklama
+  // Güne tıklama
   const handleDayClick = (day) => {
     if (!day) return;
     setSelectedDay(day);
@@ -223,11 +200,7 @@ const MonthlyLessonScheduler = () => {
     setLocationToAssign(LOCATIONS[0]);
     setSelectedHour(null);
     setVacationHour(null);
-
-    const dateKey = getDateKey(currentDate, day);
-    setDayClickCounts(prev => ({
-      ...prev, [dateKey]: (prev[dateKey] || 0) + 1
-    }));
+    // Artık herhangi bir otomatik sıfırlama yok!
   };
 
   // Atama paneli: öğrenci, saat, mekan

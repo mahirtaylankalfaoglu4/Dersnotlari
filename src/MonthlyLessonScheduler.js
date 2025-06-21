@@ -3,6 +3,7 @@ import axios from "axios";
 
 // === KULLANICI GİRİŞİ VE UZAKTAN KAYIT DESTEĞİ ===
 
+// NOT: Kendi jsonbin.io hesabınızdan bir "bin" açıp aşağıdaki iki satırı doldurmalısınız!
 const CLOUD_URL = "https://api.jsonbin.io/v3/b/YOUR_BIN_ID"; // örn: "https://api.jsonbin.io/v3/b/665b1e9fecf8c34f8722f34e"
 const CLOUD_SECRET = "YOUR_BIN_SECRET"; // örn: "$2b$10$XXXXXX..."
 
@@ -117,6 +118,7 @@ const MonthlyLessonScheduler = () => {
       }
     }
     fetchCloudData();
+    // eslint-disable-next-line
   }, [isLoggedIn]);
 
   // Ay takvimi için eksik günleri schedule'a ekle (her geçişte veya ilk açılışta)
